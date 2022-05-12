@@ -27,7 +27,7 @@ func NewCoingeckoHandler(id, date string) *CoingeckoHandler {
 	}
 }
 
-func (c *CoingeckoHandler) prepareUrl() string {
+func (c *CoingeckoHandler) prepareURL() string {
 	base, err := url.Parse(c.URL)
 	if err != nil {
 		log.Fatalln(err)
@@ -43,24 +43,59 @@ func (c *CoingeckoHandler) prepareUrl() string {
 	return base.String()
 }
 
-func (c *CoingeckoHandler) Extract() []byte {
-	url := c.prepareUrl()
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatalln(err)
-	}
+func (c *CoingeckoHandler) ResponseGenerator() Extractor {
+	fmt.Println("Outer call")
+	return func() <-chan []byte {
+		fmt.Println("Inner call")
+		out := make(chan []byte)
+		go func() {
+			fmt.Println("Go call")
+			defer close(out)
+			url := c.prepareURL()
+			resp, err := http.Get(url)
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-	return body
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Println("ASD")
+			fmt.Println(string(body))
+			out <- body
+			fmt.Println("ASD")
+			fmt.Println(string(body))
+		}()
+		return out
+	}
 }
 
-func (c *CoingeckoHandler) Transform(resp []byte) *CoingeckoResponse {
-	var cr CoingeckoResponse
-	// var cr map[string]interface{}
-	json.Unmarshal(resp, &cr)
-	return &cr
+func (c *CoingeckoHandler) ResponseProcessor() Processor {
+	return func(in <-chan []byte) <-chan *Response {
+		out := make(chan *Response)
+		go func() {
+			defer close(out)
+			for resp := range in {
+				var r Response
+				json.Unmarshal(resp, &r)
+				out <- &r
+			}
+		}()
+		return out
+	}
+}
+
+func (c *CoingeckoHandler) ResponseConsumer() Consumer {
+	return func(in <-chan *Response) {
+		for {
+			i, ok := <-in
+			if ok {
+				fmt.Printf("%v\n", i)
+			} else {
+				return
+			}
+		}
+	}
 }
