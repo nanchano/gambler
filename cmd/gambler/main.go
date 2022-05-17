@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/nanchano/gambler/pkg/exchanges"
@@ -9,17 +8,24 @@ import (
 
 func main() {
 	id := "ethereum"
-	// date := "20-04-2022"
-	// h := exchanges.NewCoingeckoHandler(id, date)
-	// h.ResponseConsumer()(h.ResponseProcessor()(h.ResponseGenerator()()))
-	// start := time.Now()
-	// end := start.AddDate(0, 1, 0)
-	start, _ := time.Parse("02-01-2006", "01-04-2022")
-	end, _ := time.Parse("02-01-2006", "01-05-2022")
-	for d := start; d.After(end) == false; d = d.AddDate(0, 0, 1) {
+	dates := createDateRange("01-04-2022", "01-05-2022")
+	h := exchanges.NewCoingeckoHandler(id)
+	run(h, dates...)
+}
+
+func createDateRange(start, end string) []string {
+	var dates []string
+	start_date, _ := time.Parse("02-01-2006", start)
+	end_date, _ := time.Parse("02-01-2006", end)
+	for d := start_date; d.After(end_date) == false; d = d.AddDate(0, 0, 1) {
 		ds := d.Format("02-01-2006")
-		fmt.Println(ds)
-		h := exchanges.NewCoingeckoHandler(id, ds)
-		h.ResponseConsumer()(h.ResponseProcessor()(h.ResponseGenerator()()))
+		dates = append(dates, ds)
 	}
+	return dates
+}
+
+func run(h *exchanges.CoingeckoHandler, dates ...string) {
+	in := h.Extract(dates...)
+	out := h.Process(in)
+	h.Save(out)
 }
