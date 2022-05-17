@@ -7,95 +7,140 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/nanchano/gambler/api/core"
 )
 
-type CoingeckoResponse map[string]interface{}
+type coingeckoResponse struct {
+	ID                  string                        `json:"id"`
+	Symbol              string                        `json:"symbol"`
+	Name                string                        `json:"name"`
+	Image               map[string]string             `json:"image"`
+	MarketData          map[string]map[string]float64 `json:"market_data"`
+	CommunityData       map[string]interface{}        `json:"community_data"`
+	DeveloperData       map[string]interface{}        `json:"developer_data"`
+	PublicInterestStats map[string]interface{}        `json:"public_interest_stats"`
+	Date                string
+}
 
-// CoingeckoHandler handles API requests for a given coin ID and date
+// CoingeckoHandler handles API requests for a given coin ID
 type CoingeckoHandler struct {
-	URL  string
-	ID   string
-	Date string
+	URL string
+	ID  string
 }
 
 // NewCoingeckoHandler creates a new CoingeckoHandler with a default URL
-func NewCoingeckoHandler(id, date string) *CoingeckoHandler {
+func NewCoingeckoHandler(id string) *CoingeckoHandler {
 	return &CoingeckoHandler{
-		URL:  "https://api.coingecko.com/api/v3/",
-		ID:   id,
-		Date: date,
+		URL: "https://api.coingecko.com/api/v3/",
+		ID:  id,
 	}
 }
 
-func (c *CoingeckoHandler) prepareURL() string {
-	base, err := url.Parse(c.URL)
-	if err != nil {
-		log.Fatalln(err)
-		panic(err)
-	}
-
-	base.Path += fmt.Sprintf("coins/%s/history", c.ID)
-
-	params := url.Values{}
-	params.Add("date", c.Date)
-	base.RawQuery = params.Encode()
-
-	return base.String()
-}
-
-func (c *CoingeckoHandler) ResponseGenerator() Extractor {
-	fmt.Println("Outer call")
-	return func() <-chan []byte {
-		fmt.Println("Inner call")
-		out := make(chan []byte)
-		go func() {
-			fmt.Println("Go call")
-			defer close(out)
-			url := c.prepareURL()
+// Extract retrieves a response from the Coingecko API
+func (c *CoingeckoHandler) Extract(dates ...string) <-chan *coingeckoResponse {
+	out := make(chan *coingeckoResponse)
+	go func() {
+		defer close(out)
+		for _, date := range dates {
+			url := c.prepareURL(date)
+			log.Println(date)
+			// log.Printf("Requesting: %s", url)
 			resp, err := http.Get(url)
 
 			if err != nil {
-				log.Fatalln(err)
+				log.Fatal(err)
 			}
 
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				log.Fatalln(err)
+				log.Fatal(err)
 			}
-			fmt.Println("ASD")
-			fmt.Println(string(body))
-			out <- body
-			fmt.Println("ASD")
-			fmt.Println(string(body))
-		}()
-		return out
-	}
+
+			var cr coingeckoResponse
+			if err := json.Unmarshal(body, &cr); err != nil {
+				log.Fatal("Can not unmarshal JSON into struct")
+			}
+
+			cr.Date = date
+			out <- &cr
+		}
+	}()
+	return out
 }
 
-func (c *CoingeckoHandler) ResponseProcessor() Processor {
-	return func(in <-chan []byte) <-chan *Response {
-		out := make(chan *Response)
-		go func() {
-			defer close(out)
-			for resp := range in {
-				var r Response
-				json.Unmarshal(resp, &r)
-				out <- &r
-			}
-		}()
-		return out
-	}
+// Process normalizes the coingeckoResponse into a core.GamblerEvent
+func (c *CoingeckoHandler) Process(in <-chan *coingeckoResponse) <-chan *core.GamblerEvent {
+	out := make(chan *core.GamblerEvent)
+	go func() {
+		defer close(out)
+		for resp := range in {
+			log.Println("Processing response")
+			gr := processCoingeckoResponse(resp)
+			out <- gr
+		}
+	}()
+	return out
 }
 
-func (c *CoingeckoHandler) ResponseConsumer() Consumer {
-	return func(in <-chan *Response) {
-		for {
-			i, ok := <-in
-			if ok {
-				fmt.Printf("%v\n", i)
-			} else {
-				return
-			}
+// Save dumps the event into a JSON file
+func (c *CoingeckoHandler) Save(in <-chan *core.GamblerEvent) {
+	for {
+		i, ok := <-in
+		if ok {
+			i.ToJSON()
+		} else {
+			return
 		}
 	}
+}
+
+// prepareURL prepares the URL (path + query params) for a request
+func (c *CoingeckoHandler) prepareURL(date string) string {
+	base, err := url.Parse(c.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	base.Path += fmt.Sprintf("coins/%s/history", c.ID)
+	params := url.Values{}
+	params.Add("date", date)
+	params.Add("localization", "false")
+	base.RawQuery = params.Encode()
+	return base.String()
+}
+
+// processCoingeckoResponse transforms a coingeckoResponse into a core.GamblerEvent
+func processCoingeckoResponse(cr *coingeckoResponse) *core.GamblerEvent {
+	var gr core.GamblerEvent
+	gr.ID = cr.ID
+	gr.Name = cr.Name
+	gr.Symbol = cr.Symbol
+	gr.Date = cr.Date
+	gr.Price = cr.MarketData["current_price"]["usd"]
+	gr.MarketCap = cr.MarketData["market_cap"]["usd"]
+	gr.Volume = cr.MarketData["total_volume"]["usd"]
+	gr.Extra = cr.buildExtraField()
+
+	return &gr
+}
+
+// buildExtraField appends the maps into a single one
+func (cr *coingeckoResponse) buildExtraField() map[string]any {
+	extra := make(map[string]any)
+	for k, v := range cr.Image {
+		extra[k] = v
+	}
+	for k, v := range cr.MarketData {
+		extra[k] = v
+	}
+	for k, v := range cr.CommunityData {
+		extra[k] = v
+	}
+	for k, v := range cr.DeveloperData {
+		extra[k] = v
+	}
+	for k, v := range cr.PublicInterestStats {
+		extra[k] = v
+	}
+	return extra
 }
