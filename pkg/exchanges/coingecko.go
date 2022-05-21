@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/nanchano/gambler/api/core"
+	"github.com/nanchano/gambler/internal/core"
 )
 
 type coingeckoResponse struct {
@@ -23,22 +23,22 @@ type coingeckoResponse struct {
 	Date                string
 }
 
-// CoingeckoHandler handles API requests for a given coin ID
-type CoingeckoHandler struct {
+// CoingeckoPipeline handles API requests for a given coin ID
+type CoingeckoPipeline struct {
 	URL string
 	ID  string
 }
 
-// NewCoingeckoHandler creates a new CoingeckoHandler with a default URL
-func NewCoingeckoHandler(id string) *CoingeckoHandler {
-	return &CoingeckoHandler{
+// NewCoingeckoPipeline creates a new CoingeckoPipeline with a default URL
+func NewCoingeckoPipeline(id string) *CoingeckoPipeline {
+	return &CoingeckoPipeline{
 		URL: "https://api.coingecko.com/api/v3/",
 		ID:  id,
 	}
 }
 
 // Extract retrieves a response from the Coingecko API
-func (c *CoingeckoHandler) Extract(dates ...string) <-chan *coingeckoResponse {
+func (c *CoingeckoPipeline) Extract(dates ...string) <-chan *coingeckoResponse {
 	out := make(chan *coingeckoResponse)
 	go func() {
 		defer close(out)
@@ -70,7 +70,7 @@ func (c *CoingeckoHandler) Extract(dates ...string) <-chan *coingeckoResponse {
 }
 
 // Process normalizes the coingeckoResponse into a core.GamblerEvent
-func (c *CoingeckoHandler) Process(in <-chan *coingeckoResponse) <-chan *core.GamblerEvent {
+func (c *CoingeckoPipeline) Process(in <-chan *coingeckoResponse) <-chan *core.GamblerEvent {
 	out := make(chan *core.GamblerEvent)
 	go func() {
 		defer close(out)
@@ -84,7 +84,7 @@ func (c *CoingeckoHandler) Process(in <-chan *coingeckoResponse) <-chan *core.Ga
 }
 
 // Save dumps the event into a JSON file
-func (c *CoingeckoHandler) Save(in <-chan *core.GamblerEvent) {
+func (c *CoingeckoPipeline) Save(in <-chan *core.GamblerEvent) {
 	for {
 		i, ok := <-in
 		if ok {
@@ -96,7 +96,7 @@ func (c *CoingeckoHandler) Save(in <-chan *core.GamblerEvent) {
 }
 
 // prepareURL prepares the URL (path + query params) for a request
-func (c *CoingeckoHandler) prepareURL(date string) string {
+func (c *CoingeckoPipeline) prepareURL(date string) string {
 	base, err := url.Parse(c.URL)
 	if err != nil {
 		log.Fatal(err)
