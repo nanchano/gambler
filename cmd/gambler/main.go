@@ -9,7 +9,7 @@ import (
 func main() {
 	id := "ethereum"
 	dates := createDateRange("01-04-2022", "01-05-2022")
-	h := exchanges.NewCoingeckoHandler(id)
+	h := exchanges.NewCoingeckoPipeline(id)
 	run(h, dates...)
 }
 
@@ -24,8 +24,8 @@ func createDateRange(start, end string) []string {
 	return dates
 }
 
-func run(h *exchanges.CoingeckoHandler, dates ...string) {
-	in := h.Extract(dates...)
-	out := h.Process(in)
-	h.Save(out)
+func run(p *exchanges.CoingeckoPipeline, dates ...string) {
+	in := p.Extract(dates...)
+	out := p.Process(in)
+	p.Save(out)
 }
