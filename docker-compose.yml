@@ -9,7 +9,7 @@ services:
       - 9200:9200
     environment:
       discovery.type: single-node
-      xpack.security.enabled: false # default is true, breaks health checks due to http # default is true, breaks health checks due to http
+      xpack.security.enabled: "false" # default is true, breaks health checks due to http # default is true, breaks health checks due to http
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "http://localhost:9200/_cat/health"]
       interval: 10s
