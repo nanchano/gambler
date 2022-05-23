@@ -17,7 +17,7 @@ func NewGamblerService(gp GamblerPipeline, gr GamblerRepository) GamblerService 
 	}
 }
 
-func (gs *gamblerService) Find(exchange, coin, date string) (*GamblerEvent, error) {
+func (gs *gamblerService) Find(coin, date string) (*GamblerEvent, error) {
 	return gs.gamblerRepository.Find(exchange, coin, date)
 }
 
