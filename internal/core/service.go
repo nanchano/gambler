@@ -22,10 +22,12 @@ func NewGamblerService(pipeline GamblerPipeline, repo GamblerRepository) Gambler
 	}
 }
 
+// Extract gets the responses from the pipeline for the given dates
 func (service *gamblerService) Extract(dates ...string) <-chan PipelineResponse {
 	return service.pipeline.Extract(dates...)
 }
 
+// Process transforms the responses from the pipeline into GamblerEvents
 func (service *gamblerService) Process(responses <-chan PipelineResponse) <-chan *GamblerEvent {
 	return service.pipeline.Process(responses)
 }

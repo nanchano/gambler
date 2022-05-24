@@ -15,10 +15,12 @@ import (
 	"github.com/nanchano/gambler/internal/core"
 )
 
+// repository will implement the core.GamblerRepository interface for the Elastic Repository
 type repository struct {
 	client *elastic.Client
 }
 
+// newElasticClient returns an ElasticSearch client and validates connection through a Ping
 func newElasticClient() (*elastic.Client, error) {
 	client, err := elastic.NewDefaultClient()
 	if err != nil {
