@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,7 +15,7 @@ import (
 	"github.com/nanchano/gambler/internal/core"
 )
 
-type ElasticRepository struct {
+type elasticRepository struct {
 	client *elastic.Client
 }
 
@@ -35,33 +36,25 @@ func newElasticClient() (*elastic.Client, error) {
 }
 
 // NewElasticRepository creates a new elasticRepository that implements core.GamblerRepository
-// func NewElasticRepository() core.GamblerRepository {
-func NewElasticRepository() ElasticRepository {
+func NewElasticRepository() core.GamblerRepository {
 	client, err := newElasticClient()
 	if err != nil {
 		log.Fatalf("Error initializing the ElasticSearch client: %s", err)
 	}
 
-	return ElasticRepository{
+	return &elasticRepository{
 		client: client,
 	}
 }
 
-func (er *ElasticRepository) Find(coin, date string) (*core.GamblerEvent, error) {
+func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error) {
 	var ge core.GamblerEvent
-
-	// "query": {
-	// 	"query_string": {
-	// 		"query": "(id:\"ethereum\") AND (date:\"20-04-2022\")"
-	// 	}
-	// }
-
 	ctx := context.Background()
 	var buf bytes.Buffer
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"query_string": map[string]interface{}{
-				"query": fmt.Sprintf("(id:\"ethereum\") AND (date:\"20-04-2022\")"),
+				"query": fmt.Sprintf("(id:\"%s\") AND (date:\"%s\")", coin, date),
 			},
 		},
 	}
@@ -71,8 +64,6 @@ func (er *ElasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 		er.client.Search.WithContext(ctx),
 		er.client.Search.WithIndex("coins"),
 		er.client.Search.WithBody(&buf),
-		// er.client.Search.WithTrackTotalHits(true),
-		er.client.Search.WithPretty(),
 	)
 	if err != nil {
 		log.Fatalf("Error getting the response for %s - %s: %s", coin, date, err)
@@ -80,52 +71,28 @@ func (er *ElasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 	}
 	defer res.Body.Close()
 
-	if res.IsError() {
-		var e map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
-			log.Fatalf("Error parsing the response body: %s", err)
-		} else {
-			// Print the response status and error information.
-			log.Fatalf("[%s] %s: %s",
-				res.Status(),
-				e["error"].(map[string]interface{})["type"],
-				e["error"].(map[string]interface{})["reason"],
-			)
-		}
-	}
-
-	var r map[string]interface{}
+	var r elasticSearchResponse
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		log.Fatal("Error parsing the response body: %s", err)
+		log.Fatalf("Error parsing the response body: %s", err)
 		return nil, err
 	}
 
-	// Print the ID and document source for each hit.
-	for i, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		if i == 0 {
-			continue
-		}
-
-		log.Printf(" * ID=%s, %s", hit.(map[string]interface{})["_id"], hit.(map[string]interface{})["_source"])
-
-		if err := json.NewDecoder(hit.(map[string]interface{})["_source"]).Decode(&ge); err != nil {
-			log.Fatal("Error parsing the response body: %s", err)
+	if len(r.Hits.Hits) == 1 {
+		if err := json.Unmarshal(r.Hits.Hits[0].Source, &ge); err != nil {
 			return nil, err
 		}
-
+		return &ge, nil
+	} else {
+		// TBD: implement multiple results
+		return nil, errors.New("More than one result for the given filters")
 	}
-
-	log.Printf("%v", ge)
-
-	return &ge, nil
 
 }
 
-func (er *ElasticRepository) Store(ge *core.GamblerEvent) error {
-	log.Printf("Saving `%s` for `%s` on the `coins` Index", ge.ID, ge.Date)
+func (er *elasticRepository) Store(event *core.GamblerEvent) error {
+	log.Printf("Saving `%s` for `%s` on the `coins` Index", event.ID, event.Date)
 	ctx := context.Background()
-
-	data, err := json.Marshal(ge)
+	data, err := json.Marshal(event)
 	if err != nil {
 		log.Fatal("Failed marshalling struct into JSON")
 		return err
@@ -133,17 +100,18 @@ func (er *ElasticRepository) Store(ge *core.GamblerEvent) error {
 
 	req := esapi.IndexRequest{
 		Index:      "coins",
-		DocumentID: fmt.Sprintf("%s_%s", ge.ID, ge.Date),
+		DocumentID: fmt.Sprintf("%s_%s", event.ID, event.Date),
 		Body:       bytes.NewReader(data),
 		Refresh:    "true",
 	}
+
 	res, err := req.Do(ctx, er.client)
 	if err != nil || res.IsError() {
-		log.Fatal("Failed indexing the data for: %v", ge)
+		log.Fatalf("Failed indexing the data for: %v", event)
 		return err
 	}
 	defer res.Body.Close()
 
-	log.Printf("Successfully inserted %v into the `coins` index", ge)
+	log.Printf("Successfully inserted %v into the `coins` index", event)
 	return nil
 }
