@@ -15,7 +15,7 @@ import (
 	"github.com/nanchano/gambler/internal/core"
 )
 
-type elasticRepository struct {
+type repository struct {
 	client *elastic.Client
 }
 
@@ -35,19 +35,20 @@ func newElasticClient() (*elastic.Client, error) {
 	return client, nil
 }
 
-// NewElasticRepository creates a new elasticRepository that implements core.GamblerRepository
-func NewElasticRepository() core.GamblerRepository {
+// NewRepository creates a new repository that implements core.GamblerRepository
+func NewRepository() core.GamblerRepository {
 	client, err := newElasticClient()
 	if err != nil {
 		log.Fatalf("Error initializing the ElasticSearch client: %s", err)
 	}
 
-	return &elasticRepository{
+	return &repository{
 		client: client,
 	}
 }
 
-func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error) {
+// Find returns a core.GamblerEvent from the ElasticSearch repository based on the coin and date provided
+func (r *repository) Find(coin, date string) (*core.GamblerEvent, error) {
 	var ge core.GamblerEvent
 	ctx := context.Background()
 	var buf bytes.Buffer
@@ -60,10 +61,10 @@ func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 	}
 	_ = json.NewEncoder(&buf).Encode(query)
 
-	res, err := er.client.Search(
-		er.client.Search.WithContext(ctx),
-		er.client.Search.WithIndex("coins"),
-		er.client.Search.WithBody(&buf),
+	res, err := r.client.Search(
+		r.client.Search.WithContext(ctx),
+		r.client.Search.WithIndex("coins"),
+		r.client.Search.WithBody(&buf),
 	)
 	if err != nil {
 		log.Fatalf("Error getting the response for %s - %s: %s", coin, date, err)
@@ -71,14 +72,14 @@ func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 	}
 	defer res.Body.Close()
 
-	var r elasticSearchResponse
+	var response elasticSearchResponse
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
 		log.Fatalf("Error parsing the response body: %s", err)
 		return nil, err
 	}
 
-	if len(r.Hits.Hits) == 1 {
-		if err := json.Unmarshal(r.Hits.Hits[0].Source, &ge); err != nil {
+	if len(response.Hits.Hits) == 1 {
+		if err := json.Unmarshal(response.Hits.Hits[0].Source, &ge); err != nil {
 			return nil, err
 		}
 		return &ge, nil
@@ -87,7 +88,8 @@ func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 
 }
 
-func (er *elasticRepository) Store(events <-chan *core.GamblerEvent) error {
+// Store saves the core.GamblerEvents provided into the ElasticSearch instance
+func (r *repository) Store(events <-chan *core.GamblerEvent) error {
 	for {
 		event, ok := <-events
 		if !ok {
@@ -108,7 +110,7 @@ func (er *elasticRepository) Store(events <-chan *core.GamblerEvent) error {
 			Refresh:    "true",
 		}
 
-		res, err := req.Do(ctx, er.client)
+		res, err := req.Do(ctx, r.client)
 		if err != nil || res.IsError() {
 			log.Fatalf("Failed indexing the data for: %v", event)
 			return err
