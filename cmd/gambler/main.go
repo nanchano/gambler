@@ -2,53 +2,46 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/nanchano/gambler/pkg/exchanges"
+	"github.com/nanchano/gambler/internal/core"
+	"github.com/nanchano/gambler/pkg/pipeline/coingecko"
 	"github.com/nanchano/gambler/pkg/repository/elastic"
 )
 
 func main() {
-	// id := "ethereum"
-	// dates := createDateRange("01-04-2022", "01-05-2022")
-	// h := exchanges.NewCoingeckoPipeline(id)
-	// run(h, dates...)
-	er := elastic.NewElasticRepository()
+	coin := "ethereum"
+	start := "20-04-2022"
+	end := "20-05-2022"
+	dates := createDateRange(start, end)
+	pipeline := coingecko.NewPipeline(coin)
+	repo := elastic.NewElasticRepository()
+	service := core.NewGamblerService(pipeline, repo)
 
-	// ge := core.GamblerEvent{
-	// 	ID:        "ethereum",
-	// 	Name:      "Ethereum",
-	// 	Symbol:    "eth",
-	// 	Date:      "20-04-2023",
-	// 	Price:     2000.01,
-	// 	MarketCap: 1.66,
-	// 	Volume:    2.66,
-	// 	Extra:     "BCE",
-	// }
-	// er.Store(&ge)
+	getData(service, dates...)
 
-	ge, err := er.Find("ethereum", "20-04-2022")
+	event, err := service.Find(coin, "25-04-2022")
 	if err != nil {
-		fmt.Println(err)
-		panic(err)
+		log.Fatal(err)
 	}
-	fmt.Printf("\n%v", ge)
+	fmt.Printf("\n%v\n", event)
 
 }
 
 func createDateRange(start, end string) []string {
 	var dates []string
-	start_date, _ := time.Parse("02-01-2006", start)
-	end_date, _ := time.Parse("02-01-2006", end)
-	for d := start_date; d.After(end_date) == false; d = d.AddDate(0, 0, 1) {
+	startDate, _ := time.Parse("02-01-2006", start)
+	endDate, _ := time.Parse("02-01-2006", end)
+	for d := startDate; d.After(endDate) == false; d = d.AddDate(0, 0, 1) {
 		ds := d.Format("02-01-2006")
 		dates = append(dates, ds)
 	}
 	return dates
 }
 
-func run(p *exchanges.CoingeckoPipeline, dates ...string) {
-	in := p.Extract(dates...)
-	out := p.Process(in)
-	p.Save(out)
+func getData(service core.GamblerService, dates ...string) {
+	responses := service.Extract(dates...)
+	events := service.Process(responses)
+	service.Store(events)
 }
