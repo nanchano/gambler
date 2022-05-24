@@ -82,36 +82,39 @@ func (er *elasticRepository) Find(coin, date string) (*core.GamblerEvent, error)
 			return nil, err
 		}
 		return &ge, nil
-	} else {
-		// TBD: implement multiple results
-		return nil, errors.New("More than one result for the given filters")
 	}
+	return nil, errors.New("More than one result for the given filters")
 
 }
 
-func (er *elasticRepository) Store(event *core.GamblerEvent) error {
-	log.Printf("Saving `%s` for `%s` on the `coins` Index", event.ID, event.Date)
-	ctx := context.Background()
-	data, err := json.Marshal(event)
-	if err != nil {
-		log.Fatal("Failed marshalling struct into JSON")
-		return err
-	}
+func (er *elasticRepository) Store(events <-chan *core.GamblerEvent) error {
+	for {
+		event, ok := <-events
+		if !ok {
+			return errors.New("Failed reading event")
+		}
+		log.Printf("Saving `%s` for `%s` on the `coins` Index", event.ID, event.Date)
+		ctx := context.Background()
+		data, err := json.Marshal(event)
+		if err != nil {
+			log.Fatal("Failed marshalling struct into JSON")
+			return err
+		}
 
-	req := esapi.IndexRequest{
-		Index:      "coins",
-		DocumentID: fmt.Sprintf("%s_%s", event.ID, event.Date),
-		Body:       bytes.NewReader(data),
-		Refresh:    "true",
-	}
+		req := esapi.IndexRequest{
+			Index:      "coins",
+			DocumentID: fmt.Sprintf("%s_%s", event.ID, event.Date),
+			Body:       bytes.NewReader(data),
+			Refresh:    "true",
+		}
 
-	res, err := req.Do(ctx, er.client)
-	if err != nil || res.IsError() {
-		log.Fatalf("Failed indexing the data for: %v", event)
-		return err
-	}
-	defer res.Body.Close()
+		res, err := req.Do(ctx, er.client)
+		if err != nil || res.IsError() {
+			log.Fatalf("Failed indexing the data for: %v", event)
+			return err
+		}
+		defer res.Body.Close()
 
-	log.Printf("Successfully inserted %v into the `coins` index", event)
-	return nil
+		log.Print("Successfully inserted the event into the `coins` index")
+	}
 }
