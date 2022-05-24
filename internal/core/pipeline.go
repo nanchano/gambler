@@ -7,6 +7,6 @@ type PipelineResponse interface {
 
 // Generic Pipeline, must extract data for a set of dates, and process the responses into GamblerEvents
 type GamblerPipeline interface {
-	Extract(dates ...string) <-chan *PipelineResponse
-	Process(responses <-chan *PipelineResponse) <-chan *GamblerEvent
+	Extract(dates ...string) <-chan PipelineResponse
+	Process(responses <-chan PipelineResponse) <-chan *GamblerEvent
 }
