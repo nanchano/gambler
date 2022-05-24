@@ -13,6 +13,7 @@ func main() {
 	// dates := createDateRange("01-04-2022", "01-05-2022")
 	// h := exchanges.NewCoingeckoPipeline(id)
 	// run(h, dates...)
+	er := elastic.NewElasticRepository()
 
 	// ge := core.GamblerEvent{
 	// 	ID:        "ethereum",
@@ -24,16 +25,15 @@ func main() {
 	// 	Volume:    2.66,
 	// 	Extra:     "BCE",
 	// }
-
-	er := elastic.NewElasticRepository()
 	// er.Store(&ge)
+
 	ge, err := er.Find("ethereum", "20-04-2022")
 	if err != nil {
 		fmt.Println(err)
 		panic(err)
 	}
-
 	fmt.Printf("\n%v", ge)
+
 }
 
 func createDateRange(start, end string) []string {
