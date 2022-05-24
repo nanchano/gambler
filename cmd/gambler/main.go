@@ -16,7 +16,7 @@ func main() {
 	end := "20-05-2022"
 	dates := createDateRange(start, end)
 	pipeline := coingecko.NewPipeline(coin)
-	repo := elastic.NewElasticRepository()
+	repo := elastic.NewRepository()
 	service := core.NewGamblerService(pipeline, repo)
 
 	getData(service, dates...)
