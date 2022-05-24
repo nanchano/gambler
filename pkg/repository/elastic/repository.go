@@ -51,7 +51,7 @@ func NewRepository() core.GamblerRepository {
 
 // Find returns a core.GamblerEvent from the ElasticSearch repository based on the coin and date provided
 func (r *repository) Find(coin, date string) (*core.GamblerEvent, error) {
-	var ge core.GamblerEvent
+	var event core.GamblerEvent
 	ctx := context.Background()
 	var buf bytes.Buffer
 	query := map[string]interface{}{
@@ -75,16 +75,16 @@ func (r *repository) Find(coin, date string) (*core.GamblerEvent, error) {
 	defer res.Body.Close()
 
 	var response elasticSearchResponse
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
 		log.Fatalf("Error parsing the response body: %s", err)
 		return nil, err
 	}
 
 	if len(response.Hits.Hits) == 1 {
-		if err := json.Unmarshal(response.Hits.Hits[0].Source, &ge); err != nil {
+		if err := json.Unmarshal(response.Hits.Hits[0].Source, &event); err != nil {
 			return nil, err
 		}
-		return &ge, nil
+		return &event, nil
 	}
 	return nil, errors.New("More than one result for the given filters")
 
