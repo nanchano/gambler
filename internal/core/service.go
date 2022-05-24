@@ -1,7 +1,7 @@
 package core
 
 type GamblerService interface {
-	Find(exchange, coin, date string) (*GamblerEvent, error)
+	Find(coin, date string) (*GamblerEvent, error)
 	Store(ge *GamblerEvent) error
 }
 
@@ -17,8 +17,8 @@ func NewGamblerService(gp GamblerPipeline, gr GamblerRepository) GamblerService 
 	}
 }
 
-func (gs *gamblerService) Find(exchange, coin, date string) (*GamblerEvent, error) {
-	return gs.gamblerRepository.Find(exchange, coin, date)
+func (gs *gamblerService) Find(coin, date string) (*GamblerEvent, error) {
+	return gs.gamblerRepository.Find(coin, date)
 }
 
 func (gs *gamblerService) Store(event *GamblerEvent) error {

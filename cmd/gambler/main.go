@@ -1,16 +1,39 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nanchano/gambler/pkg/exchanges"
+	"github.com/nanchano/gambler/pkg/repository/elastic"
 )
 
 func main() {
-	id := "ethereum"
-	dates := createDateRange("01-04-2022", "01-05-2022")
-	h := exchanges.NewCoingeckoPipeline(id)
-	run(h, dates...)
+	// id := "ethereum"
+	// dates := createDateRange("01-04-2022", "01-05-2022")
+	// h := exchanges.NewCoingeckoPipeline(id)
+	// run(h, dates...)
+	er := elastic.NewElasticRepository()
+
+	// ge := core.GamblerEvent{
+	// 	ID:        "ethereum",
+	// 	Name:      "Ethereum",
+	// 	Symbol:    "eth",
+	// 	Date:      "20-04-2023",
+	// 	Price:     2000.01,
+	// 	MarketCap: 1.66,
+	// 	Volume:    2.66,
+	// 	Extra:     "BCE",
+	// }
+	// er.Store(&ge)
+
+	ge, err := er.Find("ethereum", "20-04-2022")
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
+	}
+	fmt.Printf("\n%v", ge)
+
 }
 
 func createDateRange(start, end string) []string {
