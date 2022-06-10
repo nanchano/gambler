@@ -12,21 +12,21 @@ import (
 )
 
 // Pipeline handles API requests for a given coin ID
-type pipeline struct {
+type Pipeline struct {
 	URL string
 	ID  string
 }
 
 // NewPipeline creates a new Pipeline with a default URL
-func NewPipeline(id string) core.GamblerPipeline {
-	return &pipeline{
+func NewPipeline(id string) *Pipeline {
+	return &Pipeline{
 		URL: "https://api.coingecko.com/api/v3/",
 		ID:  id,
 	}
 }
 
 // Extract retrieves the response from the Coingecko API for the given dates
-func (p *pipeline) Extract(dates ...string) <-chan core.PipelineResponse {
+func (p *Pipeline) Extract(dates ...string) <-chan core.PipelineResponse {
 	out := make(chan core.PipelineResponse)
 	go func() {
 		defer close(out)
@@ -57,7 +57,7 @@ func (p *pipeline) Extract(dates ...string) <-chan core.PipelineResponse {
 }
 
 // Process normalizes the coingecko responses into a core.GamblerEvents
-func (p *pipeline) Process(responses <-chan core.PipelineResponse) <-chan *core.GamblerEvent {
+func (p *Pipeline) Process(responses <-chan core.PipelineResponse) <-chan *core.GamblerEvent {
 	out := make(chan *core.GamblerEvent)
 	go func() {
 		defer close(out)
@@ -71,11 +71,8 @@ func (p *pipeline) Process(responses <-chan core.PipelineResponse) <-chan *core.
 }
 
 // prepareURL prepares the URL (path + query params) for a request
-func (p *pipeline) prepareURL(date string) string {
-	base, err := url.Parse(p.URL)
-	if err != nil {
-		log.Fatal(err)
-	}
+func (p *Pipeline) prepareURL(date string) string {
+	base, _ := url.Parse(p.URL) // URL is always parseable
 	base.Path += fmt.Sprintf("coins/%s/history", p.ID)
 	params := url.Values{}
 	params.Add("date", date)
