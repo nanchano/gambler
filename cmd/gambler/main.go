@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/nanchano/gambler/internal/core"
-	"github.com/nanchano/gambler/pkg/pipeline/coingecko"
-	"github.com/nanchano/gambler/pkg/repository/elastic"
+	"github.com/nanchano/gambler/core"
+	"github.com/nanchano/gambler/pipeline/coingecko"
+	"github.com/nanchano/gambler/repository/elastic"
 )
 
 func main() {
