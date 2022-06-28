@@ -1,7 +1,7 @@
 package coingecko
 
 import (
-	"github.com/nanchano/gambler/internal/core"
+	"github.com/nanchano/gambler/core"
 )
 
 type coingeckoResponse struct {
