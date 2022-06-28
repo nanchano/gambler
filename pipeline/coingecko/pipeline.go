@@ -77,11 +77,7 @@ func (p *Pipeline) process(responses <-chan core.PipelineResponse) <-chan *core.
 }
 
 func (p *Pipeline) store(events <-chan *core.GamblerEvent, repo core.GamblerRepository) {
-	for {
-		event, ok := <-events
-		if !ok {
-			log.Fatalf("Failed reading event")
-		}
+	for event := range events {
 		repo.Store(event)
 	}
 }
