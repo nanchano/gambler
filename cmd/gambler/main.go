@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/nanchano/gambler/internal/core"
-	"github.com/nanchano/gambler/pkg/pipeline/coingecko"
-	"github.com/nanchano/gambler/pkg/repository/elastic"
+	"github.com/nanchano/gambler/core"
+	"github.com/nanchano/gambler/pipeline/coingecko"
+	"github.com/nanchano/gambler/repository/elastic"
 )
 
 func main() {
@@ -19,9 +19,9 @@ func main() {
 	repo := elastic.NewRepository()
 	service := core.NewGamblerService(pipeline, repo)
 
-	getData(service, dates...)
+	service.Run(dates...)
 
-	event, err := service.Find(coin, "25-04-2022")
+	event, err := service.Find(coin, "05-05-2022")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,10 +38,4 @@ func createDateRange(start, end string) []string {
 		dates = append(dates, ds)
 	}
 	return dates
-}
-
-func getData(service core.GamblerService, dates ...string) {
-	responses := service.Extract(dates...)
-	events := service.Process(responses)
-	service.Store(events)
 }
