@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/nanchano/gambler/internal/core"
+	"github.com/nanchano/gambler/core"
 )
 
 // Pipeline handles API requests for a given coin ID
@@ -25,16 +25,22 @@ func NewPipeline(id string) *Pipeline {
 	}
 }
 
+func (p *Pipeline) Run(repo core.GamblerRepository, dates ...string) {
+	responses := p.extract(dates...)
+	events := p.process(responses)
+	p.store(events, repo)
+}
+
 // Extract retrieves the response from the Coingecko API for the given dates
-func (p *Pipeline) Extract(dates ...string) <-chan core.PipelineResponse {
+func (p *Pipeline) extract(dates ...string) <-chan core.PipelineResponse {
 	out := make(chan core.PipelineResponse)
 	go func() {
 		defer close(out)
+		fmt.Println("ASDASDAS")
 		for _, date := range dates {
 			url := p.prepareURL(date)
 			log.Printf("Requesting: %s", url)
 			resp, err := http.Get(url)
-
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -57,7 +63,7 @@ func (p *Pipeline) Extract(dates ...string) <-chan core.PipelineResponse {
 }
 
 // Process normalizes the coingecko responses into a core.GamblerEvents
-func (p *Pipeline) Process(responses <-chan core.PipelineResponse) <-chan *core.GamblerEvent {
+func (p *Pipeline) process(responses <-chan core.PipelineResponse) <-chan *core.GamblerEvent {
 	out := make(chan *core.GamblerEvent)
 	go func() {
 		defer close(out)
@@ -68,6 +74,16 @@ func (p *Pipeline) Process(responses <-chan core.PipelineResponse) <-chan *core.
 		}
 	}()
 	return out
+}
+
+func (p *Pipeline) store(events <-chan *core.GamblerEvent, repo core.GamblerRepository) {
+	for {
+		event, ok := <-events
+		if !ok {
+			log.Fatalf("Failed reading event")
+		}
+		repo.Store(event)
+	}
 }
 
 // prepareURL prepares the URL (path + query params) for a request
