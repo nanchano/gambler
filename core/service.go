@@ -2,10 +2,9 @@ package core
 
 // GamblerService represents the main behaviour for our use case: retrieve and store cryptocurrency info
 type GamblerService interface {
-	Extract(dates ...string) <-chan PipelineResponse
-	Process(responses <-chan PipelineResponse) <-chan *GamblerEvent
+	Run(dates ...string)
 	Find(coin, date string) (*GamblerEvent, error)
-	Store(events <-chan *GamblerEvent) error
+	Store(event *GamblerEvent) error
 }
 
 // gamblerService contains a pipeline and repository to implement the GamblerService interface
@@ -22,14 +21,9 @@ func NewGamblerService(pipeline GamblerPipeline, repo GamblerRepository) Gambler
 	}
 }
 
-// Extract gets the responses from the pipeline for the given dates
-func (service *gamblerService) Extract(dates ...string) <-chan PipelineResponse {
-	return service.pipeline.Extract(dates...)
-}
-
-// Process transforms the responses from the pipeline into GamblerEvents
-func (service *gamblerService) Process(responses <-chan PipelineResponse) <-chan *GamblerEvent {
-	return service.pipeline.Process(responses)
+// Run transforms the responses from the pipeline into GamblerEvents
+func (service *gamblerService) Run(dates ...string) {
+	service.pipeline.Run(service.repo, dates...)
 }
 
 // Find retrieves a GamblerEvent from the repository for a given coin and date
@@ -38,6 +32,6 @@ func (service *gamblerService) Find(coin, date string) (*GamblerEvent, error) {
 }
 
 // Store saves each GamblerEvent on a channel on the given repository
-func (service *gamblerService) Store(events <-chan *GamblerEvent) error {
-	return service.repo.Store(events)
+func (service *gamblerService) Store(event *GamblerEvent) error {
+	return service.repo.Store(event)
 }
