@@ -4,6 +4,7 @@ import (
 	"github.com/nanchano/gambler/core"
 )
 
+// coingeckoResponse represents a raw Response from the Coingecko API
 type coingeckoResponse struct {
 	ID                  string                        `json:"id"`
 	Symbol              string                        `json:"symbol"`

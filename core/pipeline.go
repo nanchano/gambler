@@ -6,7 +6,7 @@ type PipelineResponse interface {
 	Convert() *GamblerEvent
 }
 
-// GamblerPipeline implementations must run for a given set of dates,
+// GamblerPipeline implementations must Run for a given set of dates,
 // including extracting, processing and storing events on a given repository
 type GamblerPipeline interface {
 	Run(repo GamblerRepository, dates ...string)

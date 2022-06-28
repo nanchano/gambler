@@ -49,7 +49,8 @@ func NewRepository() *Repository {
 	}
 }
 
-// Find returns a core.GamblerEvent from the ElasticSearch repository based on the coin and date provided
+// Find returns a core.GamblerEvent from the ElasticSearch repository
+// based on the coin and date provided
 func (r *Repository) Find(coin, date string) (*core.GamblerEvent, error) {
 	var event core.GamblerEvent
 	ctx := context.Background()
@@ -90,7 +91,7 @@ func (r *Repository) Find(coin, date string) (*core.GamblerEvent, error) {
 
 }
 
-// Store saves the core.GamblerEvents provided into the ElasticSearch instance
+// Store saves a core.GamblerEvent provided into the ElasticSearch instance
 func (r *Repository) Store(event *core.GamblerEvent) error {
 	log.Printf("Saving `%s` for `%s` on the `coins` Index", event.ID, event.Date)
 	ctx := context.Background()

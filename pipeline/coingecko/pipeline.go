@@ -25,13 +25,15 @@ func NewPipeline(id string) *Pipeline {
 	}
 }
 
+// Run extracts coingeckoResponses, processes them into core.GamblerEvents
+// and stores them on a given core.Repository for a set of dates
 func (p *Pipeline) Run(repo core.GamblerRepository, dates ...string) {
 	responses := p.extract(dates...)
 	events := p.process(responses)
 	p.store(events, repo)
 }
 
-// Extract retrieves the response from the Coingecko API for the given dates
+// extract retrieves the response from the Coingecko API for the given dates
 func (p *Pipeline) extract(dates ...string) <-chan core.PipelineResponse {
 	out := make(chan core.PipelineResponse)
 	go func() {
@@ -62,7 +64,7 @@ func (p *Pipeline) extract(dates ...string) <-chan core.PipelineResponse {
 	return out
 }
 
-// Process normalizes the coingecko responses into a core.GamblerEvents
+// process normalizes the coingeckoResponses into core.GamblerEvents
 func (p *Pipeline) process(responses <-chan core.PipelineResponse) <-chan *core.GamblerEvent {
 	out := make(chan *core.GamblerEvent)
 	go func() {
@@ -76,6 +78,7 @@ func (p *Pipeline) process(responses <-chan core.PipelineResponse) <-chan *core.
 	return out
 }
 
+// store saves the relevant core.GamblerEvents on a given core.Repository
 func (p *Pipeline) store(events <-chan *core.GamblerEvent, repo core.GamblerRepository) {
 	for event := range events {
 		repo.Store(event)
